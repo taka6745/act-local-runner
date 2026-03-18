@@ -152,9 +152,34 @@ function generateEventPayload(event, repoPath, branch) {
 }
 
 /**
+ * Create a temp copy of a workflow with all job-level `if:` conditions removed.
+ * This forces all jobs to run regardless of conditions.
+ */
+function createForcedWorkflow(repoPath, workflowFile) {
+  const yaml = require('js-yaml');
+  const srcPath = path.join(repoPath, '.github', 'workflows', workflowFile);
+  const content = fs.readFileSync(srcPath, 'utf8');
+  const doc = yaml.load(content);
+
+  if (doc && doc.jobs) {
+    for (const [jobId, job] of Object.entries(doc.jobs)) {
+      if (job && typeof job === 'object') {
+        delete job.if;
+      }
+    }
+  }
+
+  const tmpDir = path.join(os.tmpdir(), `act-wf-${uuidv4()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpFile = path.join(tmpDir, workflowFile);
+  fs.writeFileSync(tmpFile, yaml.dump(doc, { lineWidth: -1, noRefs: true }));
+  return { tmpWorkflowDir: tmpDir, tmpWorkflowFile: tmpFile };
+}
+
+/**
  * Start a run by spawning the `act` CLI process.
  */
-function startRun(runId, repoPath, workflowFile, event, branch) {
+function startRun(runId, repoPath, workflowFile, event, branch, forceAll) {
   const now = new Date().toISOString();
 
   // Update run status to in_progress
@@ -168,7 +193,18 @@ function startRun(runId, repoPath, workflowFile, event, branch) {
   eventFiles.set(runId, eventFile);
 
   // Build act command arguments
-  const workflowPath = `.github/workflows/${workflowFile}`;
+  let workflowPath;
+  let tmpWorkflowCleanup = null;
+
+  if (forceAll) {
+    // Create a temp workflow with all if: conditions stripped
+    const { tmpWorkflowDir } = createForcedWorkflow(repoPath, workflowFile);
+    workflowPath = tmpWorkflowDir;
+    tmpWorkflowCleanup = tmpWorkflowDir;
+  } else {
+    workflowPath = `.github/workflows/${workflowFile}`;
+  }
+
   const args = [event || 'push', '-W', workflowPath, '--eventpath', eventFile];
 
   // Spawn act in the repo directory
@@ -295,9 +331,17 @@ function startRun(runId, repoPath, workflowFile, event, branch) {
       return;
     }
 
-    // Detect docker/setup lines that aren't step starts but should close "Set up job"
-    // Lines like "🚀  Start image=..." or "🐳  docker pull/create"
-    // These are part of the current step, just append to log
+    // Detect action download lines (☁ git clone) - create a "Downloading actions" step if none active
+    const downloadMatch = rest.match(/^(?:☁)\s+(.*)/);
+    if (downloadMatch && !ctx.currentStepId) {
+      ctx.stepNumber++;
+      const stepId = uuidv4();
+      db.prepare(
+        'INSERT INTO steps (id, job_id, name, status, number, started_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(stepId, ctx.jobId, 'Downloading actions', 'in_progress', ctx.stepNumber, lineNow);
+      ctx.currentStepId = stepId;
+      emitWs('run:updated', { run: getRunForBroadcast(runId) });
+    }
 
     // Capture log output for current step (lines with " | " prefix)
     const logLineMatch = rest.match(/^\|\s+(.*)/);
@@ -307,9 +351,9 @@ function startRun(runId, repoPath, workflowFile, event, branch) {
         .run(logContent + '\n', ctx.currentStepId);
     }
 
-    // Also capture docker/setup lines as step log
-    const dockerMatch = rest.match(/^(?:🚀|🐳|docker)\s+(.*)/i);
-    if (dockerMatch && ctx.currentStepId) {
+    // Capture docker/setup/download lines as step log
+    const infraMatch = rest.match(/^(?:🚀|🐳|☁|docker)\s+(.*)/i);
+    if (infraMatch && ctx.currentStepId) {
       db.prepare('UPDATE steps SET log = log || ? WHERE id = ?')
         .run(rest + '\n', ctx.currentStepId);
     }
@@ -348,11 +392,15 @@ function startRun(runId, repoPath, workflowFile, event, branch) {
 
     processes.delete(runId);
 
-    // Clean up event file
+    // Clean up temp files
     const ef = eventFiles.get(runId);
     if (ef) {
       try { fs.unlinkSync(ef); } catch (e) {}
       eventFiles.delete(runId);
+    }
+    if (tmpWorkflowCleanup) {
+      try { fs.rmSync(tmpWorkflowCleanup, { recursive: true }); } catch (e) {}
+      tmpWorkflowCleanup = null;
     }
 
     const completedAt = new Date().toISOString();
@@ -390,11 +438,15 @@ function startRun(runId, repoPath, workflowFile, event, branch) {
     processes.delete(runId);
     const completedAt = new Date().toISOString();
 
-    // Clean up event file
+    // Clean up temp files
     const ef = eventFiles.get(runId);
     if (ef) {
       try { fs.unlinkSync(ef); } catch (e) {}
       eventFiles.delete(runId);
+    }
+    if (tmpWorkflowCleanup) {
+      try { fs.rmSync(tmpWorkflowCleanup, { recursive: true }); } catch (e) {}
+      tmpWorkflowCleanup = null;
     }
 
     const currentLog = logs.get(runId) || '';

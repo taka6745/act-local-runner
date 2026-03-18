@@ -16,11 +16,11 @@ const EVENT_DESCRIPTIONS = {
 export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo, onTrigger }) {
   const [workflowFile, setWorkflowFile] = useState('');
   const [event, setEvent] = useState('');
+  const [forceAll, setForceAll] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [repoInfo, setRepoInfo] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Get available events for the selected workflow
   const selectedWorkflow = useMemo(
     () => workflows.find(wf => wf.file === workflowFile),
     [workflows, workflowFile]
@@ -31,7 +31,6 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
     return selectedWorkflow.triggers;
   }, [selectedWorkflow]);
 
-  // When workflow changes, auto-select the first valid event
   useEffect(() => {
     if (availableEvents.length > 0 && !availableEvents.includes(event)) {
       setEvent(availableEvents[0]);
@@ -73,10 +72,12 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
         repoId: selectedRepo,
         workflowFile,
         event,
+        forceAll,
       });
       onClose();
       setWorkflowFile('');
       setEvent('');
+      setForceAll(false);
       setRepoInfo(null);
     } catch (err) {
       alert('Failed to trigger run: ' + err.message);
@@ -157,6 +158,24 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
             </select>
             <div className="form-hint">
               {EVENT_DESCRIPTIONS[event] || `Simulate a ${event} event on the current branch`}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-checkbox-label" onClick={() => setForceAll(!forceAll)}>
+              <span className={`form-checkbox ${forceAll ? 'checked' : ''}`}>
+                {forceAll && (
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
+                  </svg>
+                )}
+              </span>
+              <span className="form-checkbox-text">
+                Force all jobs
+              </span>
+            </label>
+            <div className="form-hint" style={{ marginLeft: 28 }}>
+              Strip all job-level <code>if:</code> conditions so every job runs regardless of branch, outputs, or actor checks
             </div>
           </div>
 

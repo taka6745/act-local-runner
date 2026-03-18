@@ -73,7 +73,12 @@ export default function App() {
     const { type, run } = lastMessage;
 
     if (type === 'run:started' && run) {
-      setRuns((prev) => [run, ...prev]);
+      setRuns((prev) => {
+        if (prev.some((r) => r.id === run.id)) {
+          return prev.map((r) => (r.id === run.id ? { ...r, ...run } : r));
+        }
+        return [run, ...prev];
+      });
     } else if (type === 'run:updated' && run) {
       setRuns((prev) => prev.map((r) => (r.id === run.id ? { ...r, ...run } : r)));
     } else if (type === 'run:completed' && run) {

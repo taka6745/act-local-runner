@@ -113,7 +113,7 @@ router.get('/', (req, res) => {
 // POST / - create and start a new run
 router.post('/', (req, res) => {
   try {
-    const { repoId, workflowFile, event, branch, inputs } = req.body;
+    const { repoId, workflowFile, event, branch, inputs, forceAll } = req.body;
 
     if (!repoId || !workflowFile) {
       return res.status(400).json({ error: 'repoId and workflowFile are required' });
@@ -181,7 +181,7 @@ router.post('/', (req, res) => {
 
     // Start the run asynchronously
     setImmediate(() => {
-      runner.startRun(id, repo.path, workflowFile, runEvent, currentBranch);
+      runner.startRun(id, repo.path, workflowFile, runEvent, currentBranch, !!forceAll);
     });
 
     res.status(201).json(run);
