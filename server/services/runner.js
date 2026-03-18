@@ -156,6 +156,18 @@ function generateEventPayload(event, repoPath, branch) {
  * and `needs:` dependencies removed. This forces every job to run
  * unconditionally in stage 0, regardless of conditions or dependency chains.
  */
+// Runners that act can execute (Linux containers only)
+const SUPPORTED_RUNNERS = new Set([
+  'ubuntu-latest', 'ubuntu-24.04', 'ubuntu-22.04', 'ubuntu-20.04',
+]);
+
+function isSupportedRunner(runsOn) {
+  if (!runsOn) return true; // default is ubuntu-latest
+  if (typeof runsOn === 'string') return SUPPORTED_RUNNERS.has(runsOn);
+  if (Array.isArray(runsOn)) return runsOn.some(r => SUPPORTED_RUNNERS.has(r));
+  return false;
+}
+
 function createForcedWorkflow(repoPath, workflowFile) {
   const yaml = require('js-yaml');
   const srcPath = path.join(repoPath, '.github', 'workflows', workflowFile);
@@ -167,6 +179,12 @@ function createForcedWorkflow(repoPath, workflowFile) {
       if (job && typeof job === 'object') {
         delete job.if;
         delete job.needs;
+      }
+    }
+    // Remove jobs with unsupported runners (windows, macos)
+    for (const [jobId, job] of Object.entries(doc.jobs)) {
+      if (job && !isSupportedRunner(job['runs-on'])) {
+        delete doc.jobs[jobId];
       }
     }
   }
