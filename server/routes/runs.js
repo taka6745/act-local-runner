@@ -7,6 +7,46 @@ const { parseWorkflow } = require('../services/parser');
 
 const router = express.Router();
 
+// GitHub Actions pricing per minute (USD)
+const RATES = {
+  'ubuntu-latest': 0.008,
+  'ubuntu-22.04': 0.008,
+  'ubuntu-20.04': 0.008,
+  'windows-latest': 0.016,
+  'windows-2022': 0.016,
+  'macos-latest': 0.08,
+  'macos-14': 0.08,
+  'macos-13': 0.08,
+  'macos-12': 0.08,
+  _default: 0.008, // default to Linux
+};
+
+function calculateBilling(jobs) {
+  let totalBilledMs = 0;
+  let totalCost = 0;
+
+  const jobBilling = jobs.map(job => {
+    let durationMs = 0;
+    if (job.started_at && job.completed_at) {
+      durationMs = new Date(job.completed_at).getTime() - new Date(job.started_at).getTime();
+    }
+    // GitHub rounds each job up to the nearest minute
+    const billedMinutes = Math.max(1, Math.ceil(durationMs / 60000));
+    const rate = RATES._default; // act runs Linux containers
+    const cost = billedMinutes * rate;
+    totalBilledMs += billedMinutes * 60000;
+    totalCost += cost;
+    return { name: job.name, billedMinutes, cost };
+  });
+
+  return {
+    totalBilledMinutes: Math.ceil(totalBilledMs / 60000),
+    totalCost: Math.round(totalCost * 10000) / 10000,
+    rate: RATES._default,
+    perJob: jobBilling,
+  };
+}
+
 // GET / - list runs with optional filters
 router.get('/', (req, res) => {
   try {
@@ -54,6 +94,7 @@ router.get('/', (req, res) => {
         duration: run.started_at && run.completed_at
           ? new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()
           : null,
+        billing: run.completed_at ? calculateBilling(jobs) : null,
         jobs: jobs.map(j => ({
           id: j.id,
           name: j.name,
@@ -203,6 +244,7 @@ router.get('/:id', (req, res) => {
       duration: run.started_at && run.completed_at
         ? new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()
         : null,
+      billing: run.completed_at ? calculateBilling(jobs) : null,
       jobs: jobsWithSteps,
     });
   } catch (err) {

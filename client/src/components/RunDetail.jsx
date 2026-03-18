@@ -46,11 +46,9 @@ function statusLabel(status) {
   }
 }
 
-function stepDuration(step) {
-  if (step.startedAt && step.completedAt) {
-    return formatDuration(new Date(step.completedAt) - new Date(step.startedAt));
-  }
-  return '';
+function formatCost(cost) {
+  if (cost < 0.01) return '<$0.01';
+  return `$${cost.toFixed(2)}`;
 }
 
 export default function RunDetail({ lastMessage }) {
@@ -68,7 +66,6 @@ export default function RunDetail({ lastMessage }) {
     try {
       const data = await fetchRun(id);
       setRun(data);
-      // Auto-expand first job
       if (data.jobs && data.jobs.length > 0) {
         setExpandedJobs((prev) => {
           const next = { ...prev };
@@ -89,13 +86,11 @@ export default function RunDetail({ lastMessage }) {
     loadRun();
   }, [loadRun]);
 
-  // Listen for WebSocket updates
   useEffect(() => {
     if (!lastMessage) return;
     const { type, run: wsRun, runId, data } = lastMessage;
 
     if ((type === 'run:updated' || type === 'run:completed' || type === 'run:started') && wsRun && wsRun.id === id) {
-      // Reload to get full detail (with steps)
       loadRun();
     }
 
@@ -236,6 +231,21 @@ export default function RunDetail({ lastMessage }) {
             </span>
           )}
         </div>
+
+        {run.billing && (
+          <div className="billing-banner">
+            <div className="billing-main">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" className="billing-icon">
+                <path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1 1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07 6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1 5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z" />
+              </svg>
+              <span className="billing-label">Billable time:</span>
+              <span className="billing-value">{run.billing.totalBilledMinutes} min</span>
+              <span className="billing-sep">&middot;</span>
+              <span className="billing-cost">{formatCost(run.billing.totalCost)}</span>
+              <span className="billing-rate">@ ${run.billing.rate}/min (Linux)</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="run-detail-jobs">
@@ -245,6 +255,11 @@ export default function RunDetail({ lastMessage }) {
         )}
         {run.jobs && run.jobs.map((job) => {
           const isExpanded = expandedJobs[job.id];
+          const jobDurationMs = job.startedAt && job.completedAt
+            ? new Date(job.completedAt) - new Date(job.startedAt)
+            : null;
+          const jobBilling = run.billing?.perJob?.find(jb => jb.name === job.name);
+
           return (
             <div key={job.id} className={`job-card ${isExpanded ? 'expanded' : ''}`}>
               <div className="job-card-header" onClick={() => toggleJob(job.id)}>
@@ -259,11 +274,14 @@ export default function RunDetail({ lastMessage }) {
                 </svg>
                 <StatusIcon status={job.status} size={18} />
                 <span className="job-card-name">{job.name}</span>
-                {job.startedAt && job.completedAt && (
-                  <span className="job-card-duration">
-                    {formatDuration(new Date(job.completedAt) - new Date(job.startedAt))}
-                  </span>
-                )}
+                <span className="job-card-meta">
+                  {jobDurationMs != null && (
+                    <span className="job-card-duration">{formatDuration(jobDurationMs)}</span>
+                  )}
+                  {jobBilling && (
+                    <span className="job-card-cost">{formatCost(jobBilling.cost)}</span>
+                  )}
+                </span>
               </div>
 
               {isExpanded && (
@@ -271,6 +289,9 @@ export default function RunDetail({ lastMessage }) {
                   {job.steps && job.steps.map((step) => {
                     const stepKey = `${job.id}-${step.number}`;
                     const isStepExpanded = expandedSteps[stepKey];
+                    const stepDurationMs = step.startedAt && step.completedAt
+                      ? new Date(step.completedAt) - new Date(step.startedAt)
+                      : null;
                     return (
                       <div key={stepKey} className="step-row">
                         <div
@@ -288,7 +309,9 @@ export default function RunDetail({ lastMessage }) {
                           </svg>
                           <StatusIcon status={step.status} size={14} />
                           <span className="step-name">{step.name}</span>
-                          <span className="step-duration">{stepDuration(step)}</span>
+                          {stepDurationMs != null && (
+                            <span className="step-duration">{formatDuration(stepDurationMs)}</span>
+                          )}
                         </div>
                         {isStepExpanded && step.log && (
                           <div className="step-log">
@@ -310,7 +333,6 @@ export default function RunDetail({ lastMessage }) {
           );
         })}
 
-        {/* Show live logs if run is active and no job steps yet */}
         {isActive && (!run.jobs || run.jobs.length === 0) && liveLogData && (
           <div className="job-card expanded">
             <div className="job-card-header">

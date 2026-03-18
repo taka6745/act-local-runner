@@ -836,6 +836,72 @@ a:hover {
   align-items: center;
 }
 
+/* Billing Banner */
+.billing-banner {
+  margin-top: 12px;
+  padding: 10px 16px;
+  background-color: rgba(88, 166, 255, 0.08);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.billing-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-fg-muted);
+}
+
+.billing-icon {
+  color: var(--color-accent-fg);
+  flex-shrink: 0;
+}
+
+.billing-label {
+  color: var(--color-fg-muted);
+}
+
+.billing-value {
+  color: var(--color-fg-default);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.billing-sep {
+  color: var(--color-fg-subtle);
+}
+
+.billing-cost {
+  color: var(--color-attention-fg);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.billing-rate {
+  color: var(--color-fg-subtle);
+  font-size: 12px;
+}
+
+.run-row-cost {
+  color: var(--color-attention-fg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.job-card-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.job-card-cost {
+  color: var(--color-attention-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 /* Status Badges */
 .status-badge {
   display: inline-flex;

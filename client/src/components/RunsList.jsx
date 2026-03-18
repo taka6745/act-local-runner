@@ -159,6 +159,14 @@ export default function RunsList({ runs, loading, onOpenTrigger, selectedWorkflo
                 )}
                 <span className="run-row-sep">&middot;</span>
                 <span className="run-row-time">{formatRelativeTime(run.startedAt)}</span>
+                {run.billing && (
+                  <>
+                    <span className="run-row-sep">&middot;</span>
+                    <span className="run-row-cost" title={`${run.billing.totalBilledMinutes} billed min @ $${run.billing.rate}/min`}>
+                      {run.billing.totalCost < 0.01 ? '<$0.01' : `$${run.billing.totalCost.toFixed(2)}`}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <div className="run-row-jobs">
