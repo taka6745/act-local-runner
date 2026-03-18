@@ -313,9 +313,13 @@ export default function RunDetail({ lastMessage }) {
                             <span className="step-duration">{formatDuration(stepDurationMs)}</span>
                           )}
                         </div>
-                        {isStepExpanded && step.log && (
+                        {isStepExpanded && (
                           <div className="step-log">
-                            <LogViewer log={step.log} />
+                            {step.log ? (
+                              <LogViewer log={step.log} />
+                            ) : (
+                              <div className="step-log-empty">No log output captured</div>
+                            )}
                           </div>
                         )}
                       </div>

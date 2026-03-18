@@ -1104,6 +1104,13 @@ a:hover {
   border-top: 1px solid var(--color-border-muted);
 }
 
+.step-log-empty {
+  padding: 12px 16px;
+  color: var(--color-fg-subtle);
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* ============================================================
    Log Viewer
    ============================================================ */

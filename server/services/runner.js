@@ -350,19 +350,13 @@ function startRun(runId, repoPath, workflowFile, event, branch, forceAll, jobId)
       emitWs('run:updated', { run: getRunForBroadcast(runId) });
     }
 
-    // Capture log output for current step (lines with " | " prefix)
-    const logLineMatch = rest.match(/^\|\s+(.*)/);
-    if (logLineMatch && ctx.currentStepId) {
-      const logContent = logLineMatch[1];
+    // Capture ALL output during an active step as its log
+    if (ctx.currentStepId && rest.trim()) {
+      // Strip the " | " prefix if present for cleaner output
+      const logLineMatch = rest.match(/^\|\s+(.*)/);
+      const logContent = logLineMatch ? logLineMatch[1] : rest;
       db.prepare('UPDATE steps SET log = log || ? WHERE id = ?')
         .run(logContent + '\n', ctx.currentStepId);
-    }
-
-    // Capture docker/setup/download lines as step log
-    const infraMatch = rest.match(/^(?:🚀|🐳|☁|docker)\s+(.*)/i);
-    if (infraMatch && ctx.currentStepId) {
-      db.prepare('UPDATE steps SET log = log || ? WHERE id = ?')
-        .run(rest + '\n', ctx.currentStepId);
     }
   }
 
