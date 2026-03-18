@@ -1,6 +1,7 @@
 FROM node:20-slim AS client-build
 
 WORKDIR /app/client
+COPY client/.npmrc ./
 COPY client/package.json client/package-lock.json* ./
 RUN npm install
 COPY client/ ./
@@ -15,6 +16,7 @@ RUN apt-get update && \
 
 WORKDIR /app
 
+COPY .npmrc ./
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
