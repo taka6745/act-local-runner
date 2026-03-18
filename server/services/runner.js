@@ -152,8 +152,9 @@ function generateEventPayload(event, repoPath, branch) {
 }
 
 /**
- * Create a temp copy of a workflow with all job-level `if:` conditions removed.
- * This forces all jobs to run regardless of conditions.
+ * Create a temp copy of a workflow with all job-level `if:` conditions
+ * and `needs:` dependencies removed. This forces every job to run
+ * unconditionally in stage 0, regardless of conditions or dependency chains.
  */
 function createForcedWorkflow(repoPath, workflowFile) {
   const yaml = require('js-yaml');
@@ -165,6 +166,7 @@ function createForcedWorkflow(repoPath, workflowFile) {
     for (const [jobId, job] of Object.entries(doc.jobs)) {
       if (job && typeof job === 'object') {
         delete job.if;
+        delete job.needs;
       }
     }
   }
