@@ -16,7 +16,8 @@ const EVENT_DESCRIPTIONS = {
 export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo, onTrigger }) {
   const [workflowFile, setWorkflowFile] = useState('');
   const [event, setEvent] = useState('');
-  const [forceAll, setForceAll] = useState(false);
+  const [forceAll, setForceAll] = useState(true);
+  const [jobId, setJobId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [repoInfo, setRepoInfo] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,10 +32,16 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
     return selectedWorkflow.triggers;
   }, [selectedWorkflow]);
 
+  const availableJobs = useMemo(() => {
+    if (!selectedWorkflow?.jobs?.length) return [];
+    return selectedWorkflow.jobs;
+  }, [selectedWorkflow]);
+
   useEffect(() => {
     if (availableEvents.length > 0 && !availableEvents.includes(event)) {
       setEvent(availableEvents[0]);
     }
+    setJobId(''); // reset job selection when workflow changes
   }, [availableEvents, workflowFile]);
 
   useEffect(() => {
@@ -73,11 +80,13 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
         workflowFile,
         event,
         forceAll,
+        ...(jobId ? { jobId } : {}),
       });
       onClose();
       setWorkflowFile('');
       setEvent('');
-      setForceAll(false);
+      setForceAll(true);
+      setJobId('');
       setRepoInfo(null);
     } catch (err) {
       alert('Failed to trigger run: ' + err.message);
@@ -161,6 +170,28 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
             </div>
           </div>
 
+          {availableJobs.length > 0 && (
+            <div className="form-group">
+              <label className="form-label">Job</label>
+              <select
+                className="form-select"
+                value={jobId}
+                onChange={(e) => setJobId(e.target.value)}
+                disabled={!selectedRepo}
+              >
+                <option value="">All jobs</option>
+                {availableJobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.name}
+                  </option>
+                ))}
+              </select>
+              <div className="form-hint">
+                {jobId ? 'Run only this job, skipping all others' : 'Run every job in the workflow'}
+              </div>
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-checkbox-label" onClick={() => setForceAll(!forceAll)}>
               <span className={`form-checkbox ${forceAll ? 'checked' : ''}`}>
@@ -171,11 +202,11 @@ export default function TriggerDialog({ isOpen, onClose, workflows, selectedRepo
                 )}
               </span>
               <span className="form-checkbox-text">
-                Force all jobs
+                Run jobs independently
               </span>
             </label>
             <div className="form-hint" style={{ marginLeft: 28 }}>
-              Strip all job-level <code>if:</code> conditions so every job runs regardless of branch, outputs, or actor checks
+              Strip <code>if:</code> conditions and <code>needs:</code> dependencies so all jobs run in parallel without waiting on each other
             </div>
           </div>
 

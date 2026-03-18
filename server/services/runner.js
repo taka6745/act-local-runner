@@ -181,7 +181,7 @@ function createForcedWorkflow(repoPath, workflowFile) {
 /**
  * Start a run by spawning the `act` CLI process.
  */
-function startRun(runId, repoPath, workflowFile, event, branch, forceAll) {
+function startRun(runId, repoPath, workflowFile, event, branch, forceAll, jobId) {
   const now = new Date().toISOString();
 
   // Update run status to in_progress
@@ -208,6 +208,11 @@ function startRun(runId, repoPath, workflowFile, event, branch, forceAll) {
   }
 
   const args = [event || 'push', '-W', workflowPath, '--eventpath', eventFile];
+
+  // Run a specific job only
+  if (jobId) {
+    args.push('-j', jobId);
+  }
 
   // Spawn act in the repo directory
   const child = spawn('act', args, {
