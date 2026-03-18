@@ -35,6 +35,11 @@ export function deleteRepo(id) {
   return request(`/repos/${id}`, { method: 'DELETE' });
 }
 
+// Repo info
+export function fetchRepoInfo(repoId) {
+  return request(`/repos/${repoId}/info`);
+}
+
 // Workflows
 export function fetchWorkflows(repoId) {
   return request(`/repos/${repoId}/workflows`);

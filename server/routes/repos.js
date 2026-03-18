@@ -65,6 +65,53 @@ router.post('/', (req, res) => {
   }
 });
 
+// GET /:id/info - get repo info including current branch
+router.get('/:id/info', (req, res) => {
+  try {
+    const { id } = req.params;
+    const repo = db.prepare('SELECT * FROM repos WHERE id = ?').get(id);
+    if (!repo) {
+      return res.status(404).json({ error: 'Repo not found' });
+    }
+
+    const { execSync } = require('child_process');
+    let currentBranch = 'unknown';
+    let commitMessage = '';
+    let commitSha = '';
+    let branches = [];
+
+    try {
+      currentBranch = execSync('git rev-parse --abbrev-ref HEAD', {
+        cwd: repo.path, encoding: 'utf8',
+      }).trim();
+      commitMessage = execSync('git log -1 --pretty=%s', {
+        cwd: repo.path, encoding: 'utf8',
+      }).trim();
+      commitSha = execSync('git rev-parse --short HEAD', {
+        cwd: repo.path, encoding: 'utf8',
+      }).trim();
+      branches = execSync('git branch --format="%(refname:short)"', {
+        cwd: repo.path, encoding: 'utf8',
+      }).trim().split('\n').filter(Boolean);
+    } catch (gitErr) {
+      // git not available or not a git repo
+    }
+
+    res.json({
+      id: repo.id,
+      path: repo.path,
+      name: repo.name,
+      currentBranch,
+      commitMessage,
+      commitSha,
+      branches,
+    });
+  } catch (err) {
+    console.error('Error getting repo info:', err);
+    res.status(500).json({ error: 'Failed to get repo info' });
+  }
+});
+
 // DELETE /:id - delete a repo and all associated data
 router.delete('/:id', (req, res) => {
   try {
