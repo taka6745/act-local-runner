@@ -326,10 +326,16 @@ export default function RunDetail({ lastMessage }) {
                     );
                   })}
 
-                  {(!job.steps || job.steps.length === 0) && isActive && liveLogData && (
-                    <div className="step-log">
-                      <LogViewer log={liveLogData} autoScroll />
-                    </div>
+                  {(!job.steps || job.steps.length === 0) && (
+                    isActive && liveLogData ? (
+                      <div className="step-log">
+                        <LogViewer log={liveLogData} autoScroll />
+                      </div>
+                    ) : (
+                      <div className="step-log-empty">
+                        No steps were recorded for this job
+                      </div>
+                    )
                   )}
                 </div>
               )}
