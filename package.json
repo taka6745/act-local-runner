@@ -1,0 +1,20 @@
+{
+  "name": "act-local-runner",
+  "version": "1.0.0",
+  "description": "GitHub Actions CI local runner with web UI powered by act",
+  "private": true,
+  "scripts": {
+    "dev": "node server/index.js",
+    "build:client": "cd client && npm install && npm run build",
+    "start": "NODE_ENV=production node server/index.js",
+    "mcp": "node mcp-server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "js-yaml": "^4.1.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  }
+}

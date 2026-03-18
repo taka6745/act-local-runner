@@ -1,0 +1,11 @@
+{
+  "name": "act-local-runner-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Act Local Runner - GitHub Actions CI",
+  "main": "index.js",
+  "type": "commonjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.23.0"
+  }
+}
